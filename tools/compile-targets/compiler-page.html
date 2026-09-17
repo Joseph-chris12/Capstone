@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>MindAR target compiler (headless)</title>
+<!--
+  Loads the SAME vendored bundle the app ships. A .mind file is only valid
+  against the runtime that reads it, so compiling with a different mind-ar
+  build than the app runs is a silent source of tracking failures. Reusing one
+  file makes that mismatch impossible.
+
+  A-Frame comes first because the mind-ar A-Frame bundle calls
+  AFRAME.registerSystem at load time.
+-->
+<script src="vendor/aframe.min.js"></script>
+<script src="vendor/mindar-image-aframe.prod.js"></script>
+</head>
+<body>
+<script>
+  function loadImage(dataUrl) {
+    return new Promise(function (resolve, reject) {
+      var img = new Image();
+      img.onload = function () { resolve(img); };
+      img.onerror = function () { reject(new Error('could not decode image')); };
+      img.src = dataUrl;
+    });
+  }
+
+  // Called from Node. dataUrls are in bundle order; the returned targets array
+  // is in the same order, so index i describes target_index i.
+  window.compileTargets = async function (dataUrls) {
+    var images = [];
+    for (var i = 0; i < dataUrls.length; i++) {
+      images.push(await loadImage(dataUrls[i]));
+    }
+
+    var compiler = new window.MINDAR.IMAGE.Compiler();
+    await compiler.compileImageTargets(images, function (p) {
+      window.__progress = p;
+    });
+
+    var buffer = await compiler.exportData();
+    var bytes = new Uint8Array(buffer);
+
+    // Chunked so the base64 conversion does not blow the argument limit on a
+    // multi-megabyte bundle.
+    var binary = '';
+    var CHUNK = 0x8000;
+    for (var j = 0; j < bytes.length; j += CHUNK) {
+      binary += String.fromCharCode.apply(
+        null, bytes.subarray(j, j + CHUNK));
+    }
+
+    return {
+      mind: btoa(binary),
+      targets: images.map(function (img) {
+        return {
+          width: img.naturalWidth,
+          height: img.naturalHeight,
+          aspectRatio: img.naturalHeight / img.naturalWidth
+        };
+      })
+    };
+  };
+</script>
+</body>
+</html>

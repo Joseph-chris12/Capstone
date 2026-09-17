@@ -1,0 +1,43 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+*.iml
+.idea/
+.vscode/
+
+# Android
+android/.gradle/
+android/local.properties
+android/app/debug/
+android/app/profile/
+android/app/release/
+*.jks
+key.properties
+
+# iOS
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Flutter/flutter_export_environment.sh
+
+# Secrets — never commit. The compile tool uses the Supabase SERVICE ROLE key.
+.env
+.env.*
+!.env.example
+tools/compile-targets/.env
+
+# Node
+node_modules/
+
+# Local working assets (target photos / source videos are large; keep them out of git)
+tools/compile-targets/targets/
+tools/compile-targets/out/
+tools/compile-targets/videos/
+
+# OS
+.DS_Store
+Thumbs.db
