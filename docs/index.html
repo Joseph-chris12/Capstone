@@ -39,6 +39,18 @@
              transform:translate(-50%,-50%); border:2px solid rgba(255,255,255,.45);
              border-radius:8px; z-index:8; pointer-events:none; transition:opacity .25s; }
   #reticle.hide { opacity:0; }
+
+  /* A visible build stamp settles the "is this the new version?" question
+     instantly -- a stale cached copy shows an older date. */
+  #build { position:fixed; left:6px; z-index:11; font-size:10px; color:#ffffff66;
+           bottom:calc(2px + env(safe-area-inset-bottom, 0px)); pointer-events:none; }
+  #diagBtn { position:fixed; right:6px; z-index:11; font-size:11px; color:#fff;
+             top:calc(48px + env(safe-area-inset-top, 0px));
+             background:rgba(0,0,0,.55); border-radius:8px; padding:6px 10px; }
+  #diag { position:fixed; inset:auto 8px 60px 8px; z-index:12; max-height:52vh;
+          overflow:auto; background:rgba(0,0,0,.88); color:#e8e8e8; border-radius:12px;
+          padding:12px 14px; font-family:ui-monospace,Menlo,Consolas,monospace;
+          font-size:11.5px; line-height:1.5; white-space:pre-wrap; word-break:break-word; }
 </style>
 <script src="vendor/aframe.min.js"></script>
 <script src="vendor/mindar-image-aframe.prod.js"></script>
@@ -51,6 +63,9 @@
 
 <div id="reticle"></div>
 <div id="status">Starting camera…</div>
+<div id="build">build —</div>
+<button id="diagBtn" type="button">Diagnostics</button>
+<div id="diag" hidden></div>
 
 <div class="bar top">
   <span class="label">Where</span>
@@ -204,6 +219,80 @@
     if (found && video.paused) video.play().catch(function () {});
   });
 
+  // --- diagnostics -----------------------------------------------------
+  // There is no way to attach a debugger to someone else's phone, so the page
+  // reports its own state on screen instead.
+  var BUILD = 'b3 2026-09-18 13:10';
+  document.getElementById('build').textContent = 'build ' + BUILD;
+
+  var lastArError = 'none';
+
+  function collect() {
+    var out = [];
+    out.push('build        ' + BUILD);
+    out.push('url          ' + location.href);
+    out.push('secure ctx   ' + window.isSecureContext);
+    out.push('getUserMedia ' + !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia));
+    out.push('arError      ' + lastArError);
+
+    var cam = null;
+    var all = document.querySelectorAll('video');
+    for (var i = 0; i < all.length; i++) if (all[i].id !== 'clip') cam = all[i];
+
+    if (!cam) {
+      out.push('CAMERA VIDEO none found  <-- stream never attached');
+    } else {
+      var cs = getComputedStyle(cam);
+      var r = cam.getBoundingClientRect();
+      out.push('camera size  ' + cam.videoWidth + 'x' + cam.videoHeight +
+               '  ready=' + cam.readyState + ' paused=' + cam.paused);
+      out.push('camera css   z=' + cs.zIndex + ' pos=' + cs.position +
+               ' vis=' + cs.visibility + ' op=' + cs.opacity + ' disp=' + cs.display);
+      out.push('camera rect  ' + Math.round(r.x) + ',' + Math.round(r.y) +
+               ' ' + Math.round(r.width) + 'x' + Math.round(r.height));
+      out.push('camera parent ' + (cam.parentElement ? cam.parentElement.tagName : '?'));
+    }
+
+    out.push('body bg      ' + getComputedStyle(document.body).backgroundColor +
+             '   <-- must be transparent');
+    out.push('html bg      ' + getComputedStyle(document.documentElement).backgroundColor);
+
+    var canvas = document.querySelector('a-scene canvas');
+    if (canvas) {
+      var k = getComputedStyle(canvas);
+      out.push('canvas       ' + canvas.width + 'x' + canvas.height +
+               ' z=' + k.zIndex + ' bg=' + k.backgroundColor);
+    } else {
+      out.push('canvas       MISSING  <-- A-Frame never rendered');
+    }
+
+    try {
+      var t = document.createElement('canvas');
+      out.push('webgl        ' + !!(t.getContext('webgl2') || t.getContext('webgl')));
+    } catch (e) { out.push('webgl        error ' + e.message); }
+
+    out.push('clip ready   ' + video.readyState + ' net=' + video.networkState +
+             ' ' + video.videoWidth + 'x' + video.videoHeight);
+    out.push('screen       ' + window.innerWidth + 'x' + window.innerHeight +
+             ' dpr=' + window.devicePixelRatio);
+    out.push('ua           ' + navigator.userAgent);
+    return out.join('\n');
+  }
+
+  var diag = document.getElementById('diag');
+  document.getElementById('diagBtn').addEventListener('click', function (e) {
+    e.stopPropagation();
+    diag.hidden = !diag.hidden;
+    if (!diag.hidden) {
+      diag.textContent = collect();
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(diag.textContent).then(function () {
+          diag.textContent = '(copied to clipboard)\n\n' + collect();
+        }, function () {});
+      }
+    }
+  });
+
   video.addEventListener('loadedmetadata', apply);
   video.addEventListener('error', function () {
     setStatus('Video failed to load (' + (video.error ? video.error.code : '?') + ')');
@@ -213,7 +302,8 @@
   scene.addEventListener('arReady', function () {
     setStatus('Point at the Espresso poster');
   });
-  scene.addEventListener('arError', function () {
+  scene.addEventListener('arError', function (e) {
+    lastArError = (e && e.detail && e.detail.error) || 'unknown';
     setStatus('Camera could not start. Open this page in Chrome (Android) or Safari (iOS), and allow camera access.');
   });
 })();
