@@ -6,13 +6,19 @@
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>AR Gallery</title>
 <style>
+  /* Black lives on <html>, never on <body>. MindAR appends its camera <video>
+     to <body> with z-index:-2, and because <body> is not a stacking context
+     that video paints in the ROOT stacking context at the negative-z step --
+     which comes BEFORE body's own background is painted. A background on
+     <body> therefore covers the live camera feed and the screen stays black
+     while the camera light is on. */
+  html { background: #000; }
   html, body {
     margin: 0;
     padding: 0;
     width: 100%;
     height: 100%;
     overflow: hidden;
-    background: #000;
     /* The Flutter layer draws all UI on top; nothing here should intercept touch. */
     -webkit-user-select: none;
     user-select: none;

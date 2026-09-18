@@ -5,7 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>AR Gallery — cafe test</title>
 <style>
-  html, body { margin:0; height:100%; overflow:hidden; background:#000;
+  /* Black lives on <html>, never on <body>. MindAR appends its camera <video>
+     to <body> with z-index:-2, and because <body> is not a stacking context
+     that video paints in the ROOT stacking context at the negative-z step --
+     which comes BEFORE body's own background is painted. A background on
+     <body> therefore covers the live camera feed and the screen stays black
+     while the camera light is on. */
+  html { background:#000; }
+  html, body { margin:0; height:100%; overflow:hidden;
                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
                -webkit-tap-highlight-color: transparent; }
   #pool { position:absolute; left:-9999px; width:1px; height:1px; opacity:0; }
