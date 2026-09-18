@@ -1,0 +1,34 @@
+name: Deploy AR test page
+
+# Publishes docs/ to GitHub Pages. The camera API needs a secure context, so the
+# page has to be served over HTTPS — Pages gives that for free, which is why the
+# test page is hosted rather than opened from a file or a laptop on the cafe wifi.
+on:
+  push:
+    branches: [main, claude/amazing-ptolemy-six6cc]
+    paths: ['docs/**', '.github/workflows/pages.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+      - id: deployment
+        uses: actions/deploy-pages@v4

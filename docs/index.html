@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>AR Gallery — cafe test</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#000;
+               font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+               -webkit-tap-highlight-color: transparent; }
+  #pool { position:absolute; left:-9999px; width:1px; height:1px; opacity:0; }
+
+  .bar { position:fixed; left:0; right:0; z-index:10; display:flex; gap:8px;
+         justify-content:center; flex-wrap:wrap; padding:10px 12px; }
+  .bar.top { top:0; padding-top:calc(10px + env(safe-area-inset-top)); }
+  .bar.bottom { bottom:0; padding-bottom:calc(10px + env(safe-area-inset-bottom)); }
+
+  .group { display:flex; background:rgba(0,0,0,.55); border-radius:999px; padding:3px;
+           backdrop-filter:blur(8px); }
+  button { appearance:none; border:0; background:transparent; color:#fff;
+           font-size:13px; padding:8px 14px; border-radius:999px; cursor:pointer; }
+  button[aria-pressed="true"] { background:#fff; color:#111; font-weight:600; }
+  .label { color:#fff9; font-size:11px; align-self:center; padding:0 6px;
+           text-transform:uppercase; letter-spacing:.06em; }
+
+  #status { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%);
+            z-index:9; color:#fff; background:rgba(0,0,0,.55); padding:12px 18px;
+            border-radius:14px; font-size:14px; text-align:center; max-width:80vw;
+            backdrop-filter:blur(8px); transition:opacity .25s; }
+  #status.hide { opacity:0; }
+  #reticle { position:fixed; left:50%; top:50%; width:62vw; height:calc(62vw*1.68);
+             transform:translate(-50%,-50%); border:2px solid rgba(255,255,255,.45);
+             border-radius:8px; z-index:8; pointer-events:none; transition:opacity .25s; }
+  #reticle.hide { opacity:0; }
+</style>
+<script src="vendor/aframe.min.js"></script>
+<script src="vendor/mindar-image-aframe.prod.js"></script>
+</head>
+<body>
+
+<div id="pool">
+  <video id="clip" src="clip.mp4" loop muted playsinline webkit-playsinline preload="auto"></video>
+</div>
+
+<div id="reticle"></div>
+<div id="status">Starting camera…</div>
+
+<div class="bar top">
+  <span class="label">Where</span>
+  <div class="group" id="place">
+    <button data-v="poster" aria-pressed="true">Whole poster</button>
+    <button data-v="panel"  aria-pressed="false">Maroon panel</button>
+  </div>
+</div>
+
+<div class="bar bottom">
+  <div class="group" id="fit">
+    <button data-v="cover"   aria-pressed="true">Fill</button>
+    <button data-v="contain" aria-pressed="false">Fit whole video</button>
+  </div>
+  <div class="group">
+    <button id="sound" aria-pressed="false">🔇 Sound</button>
+  </div>
+</div>
+
+<a-scene
+  mindar-image="imageTargetSrc: targets.mind; autoStart: true; maxTrack: 1;
+                uiLoading: no; uiError: no; uiScanning: no"
+  embedded color-space="sRGB"
+  renderer="colorManagement: true, physicallyCorrectLights, alpha: true"
+  vr-mode-ui="enabled: false"
+  device-orientation-permission-ui="enabled: false">
+  <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+  <a-entity id="target" mindar-image-target="targetIndex: 0">
+    <a-plane id="screen" width="1" height="1.68" position="0 0 0"
+             material="shader: flat; side: double; transparent: true"></a-plane>
+  </a-entity>
+</a-scene>
+
+<script>
+(function () {
+  'use strict';
+
+  // Measured from the rectified poster: the target is 1 unit wide and
+  // TARGET_ASPECT tall, and the maroon panel sits at these fractions of it.
+  var TARGET_ASPECT = 1.68;
+  var PANEL = { x0: 0.0491, x1: 0.9600, y0: 0.1472, y1: 0.7305 };
+
+  var video = document.getElementById('clip');
+  var screenEl = document.getElementById('screen');
+  var statusEl = document.getElementById('status');
+  var reticle = document.getElementById('reticle');
+
+  var placement = 'poster';
+  var fit = 'cover';
+  var found = false;
+
+  function regionFor(mode) {
+    if (mode === 'poster') {
+      return { w: 1, h: TARGET_ASPECT, x: 0, y: 0 };
+    }
+    var w = PANEL.x1 - PANEL.x0;
+    var h = (PANEL.y1 - PANEL.y0) * TARGET_ASPECT;
+    var cx = (PANEL.x0 + PANEL.x1) / 2 - 0.5;
+    // Target space has +y up; the fractions above are measured from the top.
+    var cy = (0.5 - (PANEL.y0 + PANEL.y1) / 2) * TARGET_ASPECT;
+    return { w: w, h: h, x: cx, y: cy };
+  }
+
+  function apply() {
+    var r = regionFor(placement);
+    var vAspect = (video.videoHeight || 1280) / (video.videoWidth || 720);
+    var w = r.w, h = r.h;
+
+    var mesh = screenEl.getObject3D('mesh');
+    var tex = mesh && mesh.material && mesh.material.map;
+
+    if (fit === 'contain') {
+      // Shrink the plane to the video's shape so nothing is cropped and no
+      // black bars appear — the plane itself becomes the letterbox.
+      var regionAspect = r.h / r.w;
+      if (vAspect > regionAspect) { h = r.h; w = r.h / vAspect; }
+      else { w = r.w; h = r.w * vAspect; }
+      if (tex) { tex.repeat.set(1, 1); tex.offset.set(0, 0); }
+    } else if (tex) {
+      // Fill the region and crop the overflow, via texture repeat/offset.
+      var pAspect = h / w;
+      if (pAspect < vAspect) {
+        var ry = pAspect / vAspect;
+        tex.repeat.set(1, ry); tex.offset.set(0, (1 - ry) / 2);
+      } else {
+        var rx = vAspect / pAspect;
+        tex.repeat.set(rx, 1); tex.offset.set((1 - rx) / 2, 0);
+      }
+    }
+
+    screenEl.setAttribute('width', w);
+    screenEl.setAttribute('height', h);
+    screenEl.setAttribute('position', r.x + ' ' + r.y + ' 0.001');
+    if (tex) tex.needsUpdate = true;
+  }
+
+  function setStatus(text, hide) {
+    statusEl.textContent = text;
+    statusEl.classList.toggle('hide', !!hide);
+    reticle.classList.toggle('hide', !!hide);
+  }
+
+  // The video only becomes a texture once A-Frame has built the mesh, so wait
+  // for both before sizing anything.
+  screenEl.addEventListener('loaded', function () {
+    screenEl.setAttribute('material', 'src', '#clip');
+    setTimeout(apply, 0);
+  });
+
+  document.getElementById('place').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    placement = b.dataset.v;
+    [].forEach.call(this.children, function (c) {
+      c.setAttribute('aria-pressed', String(c === b));
+    });
+    apply();
+  });
+
+  document.getElementById('fit').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    fit = b.dataset.v;
+    [].forEach.call(this.children, function (c) {
+      c.setAttribute('aria-pressed', String(c === b));
+    });
+    apply();
+  });
+
+  var soundBtn = document.getElementById('sound');
+  soundBtn.addEventListener('click', function () {
+    video.muted = !video.muted;
+    soundBtn.textContent = (video.muted ? '🔇' : '🔊') + ' Sound';
+    soundBtn.setAttribute('aria-pressed', String(!video.muted));
+    if (!video.muted) video.play().catch(function () {});
+  });
+
+  var target = document.getElementById('target');
+  target.addEventListener('targetFound', function () {
+    found = true;
+    setStatus('', true);
+    video.play().catch(function () {
+      setStatus('Tap the screen to start the video');
+    });
+  });
+  target.addEventListener('targetLost', function () {
+    found = false;
+    video.pause();
+    setStatus('Point at the Espresso poster');
+  });
+
+  document.body.addEventListener('click', function () {
+    if (found && video.paused) video.play().catch(function () {});
+  });
+
+  video.addEventListener('loadedmetadata', apply);
+  video.addEventListener('error', function () {
+    setStatus('Video failed to load (' + (video.error ? video.error.code : '?') + ')');
+  });
+
+  var scene = document.querySelector('a-scene');
+  scene.addEventListener('arReady', function () {
+    setStatus('Point at the Espresso poster');
+  });
+  scene.addEventListener('arError', function () {
+    setStatus('Camera could not start. Open this page in Chrome (Android) or Safari (iOS), and allow camera access.');
+  });
+})();
+</script>
+</body>
+</html>
