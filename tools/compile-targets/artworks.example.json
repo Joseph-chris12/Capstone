@@ -1,0 +1,29 @@
+{
+  "//": "Array ORDER defines target_index. Reordering re-indexes everything, which is fine — the compile tool rewrites the database to match in the same run. Paths are relative to this directory.",
+  "artworks": [
+    {
+      "slug": "moonlit-harbour",
+      "title": "Moonlit Harbour",
+      "artist": "A. Student",
+      "year": "2024",
+      "description": "Oil on canvas. The harbour at night, painted from the east pier.",
+      "target": "targets/moonlit-harbour.jpg",
+      "video": "videos/moonlit-harbour.mp4",
+      "videoMode": "fullframe"
+    },
+    {
+      "slug": "the-diver",
+      "title": "The Diver",
+      "artist": "B. Student",
+      "year": "2025",
+      "description": "Acrylic. A figure suspended mid-dive.",
+      "target": "targets/the-diver.jpg",
+      "video": "videos/the-diver-green.mp4",
+      "videoMode": "cutout",
+      "chromaColor": "0.1 0.9 0.2",
+      "planeWidth": 1.6,
+      "planeHeight": 2.0,
+      "offsetY": 0.35
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>AR Gallery</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #000;
+    /* The Flutter layer draws all UI on top; nothing here should intercept touch. */
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* Video elements are textures, never displayed directly. Kept out of
+     <a-assets> on purpose: a-assets blocks scene init until every asset
+     loads, and these stream from Supabase. */
+  #video-pool {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+    left: -9999px;
+  }
+  a-scene { width: 100%; height: 100%; }
+</style>
+<script src="vendor/aframe.min.js"></script>
+<script src="vendor/mindar-image-aframe.prod.js"></script>
+<script src="vendor/aframe-chromakey-material.min.js"></script>
+</head>
+<body>
+  <div id="video-pool"></div>
+  <div id="scene-root"></div>
+  <script src="app.js"></script>
+</body>
+</html>
