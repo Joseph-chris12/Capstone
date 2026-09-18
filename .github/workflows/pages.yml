@@ -26,11 +26,12 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      # enablement:true turns Pages on via the API if it is not already, so the
-      # repo needs no manual settings change before the first deploy.
+      # Pages must already be enabled with Source = "GitHub Actions"
+      # (Settings -> Pages). The workflow's GITHUB_TOKEN can deploy to an
+      # existing Pages site but cannot create one -- `enablement: true` fails
+      # with "Resource not accessible by integration", since creating the site
+      # needs repo admin rights. It is a one-time manual step.
       - uses: actions/configure-pages@v5
-        with:
-          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: docs
