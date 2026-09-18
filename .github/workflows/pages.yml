@@ -3,9 +3,13 @@ name: Deploy AR test page
 # Publishes docs/ to GitHub Pages. The camera API needs a secure context, so the
 # page has to be served over HTTPS — Pages gives that for free, which is why the
 # test page is hosted rather than opened from a file or a laptop on the cafe wifi.
+# Only main. The github-pages environment refuses deploys from other branches,
+# so a branch run could never publish -- and worse, with cancel-in-progress
+# below it would cancel a real main deploy before dying itself. That is exactly
+# what happened to run 8.
 on:
   push:
-    branches: [main, claude/amazing-ptolemy-six6cc]
+    branches: [main]
     paths: ['docs/**', '.github/workflows/pages.yml']
   workflow_dispatch:
 
