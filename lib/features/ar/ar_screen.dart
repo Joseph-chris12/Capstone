@@ -186,7 +186,11 @@ class _ArScreenState extends State<ArScreen> with WidgetsBindingObserver {
         },
         onTargetLost: (_) {
           if (!mounted) return;
-          setState(() => _current = null);
+          // The clip closed with its artwork, so its tap-to-play goes too.
+          setState(() {
+            _current = null;
+            _playbackBlocked = false;
+          });
         },
         onPlaybackBlocked: (_) {
           if (!mounted) return;

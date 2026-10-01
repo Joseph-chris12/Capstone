@@ -73,6 +73,14 @@
     v.setAttribute('webkit-playsinline', '');
     v.setAttribute('muted', '');
     v.preload = 'none';
+    // loop is set above, but some Android WebViews still stop a clip that is
+    // used as a WebGL texture at its last frame. Restart it by hand while its
+    // artwork is in view; when loop does work, 'ended' never fires.
+    v.addEventListener('ended', function () {
+      if (state.activeIndex !== art.targetIndex) return;
+      v.currentTime = 0;
+      playVideo(art.targetIndex);
+    });
     v.addEventListener('error', function () {
       var e = v.error;
       send('onVideoError', {
@@ -93,6 +101,10 @@
     var p = v.play();
     if (p && typeof p.catch === 'function') {
       p.catch(function (err) {
+        // A pause() racing this play() (the artwork left view, or the clip
+        // was restarted) rejects with AbortError: that is not a block.
+        if (err && err.name === 'AbortError') return;
+        if (state.activeIndex !== index) return;
         // Autoplay was refused. Dart shows a tap-to-play affordance; the
         // gesture is forwarded back through ARApp.resumePlayback().
         send('onPlaybackBlocked', {
@@ -107,6 +119,16 @@
     var v = state.videos[index];
     if (!v) return;
     try { v.pause(); } catch (e) { /* teardown race, harmless */ }
+  }
+
+  // Looking away closes the clip: it stops, rewinds, and starts from the
+  // beginning the next time the artwork is recognised.
+  function closeVideo(index) {
+    pauseVideo(index);
+    var v = state.videos[index];
+    if (v && v.readyState > 0) {
+      try { v.currentTime = 0; } catch (e) { /* not seekable yet, harmless */ }
+    }
   }
 
   // --- scene -------------------------------------------------------------
@@ -142,6 +164,7 @@
 
     entity.addEventListener('targetFound', function () {
       state.activeIndex = art.targetIndex;
+      plane.setAttribute('visible', true);
       playVideo(art.targetIndex);
       send('onTargetFound', {
         targetIndex: art.targetIndex,
@@ -155,7 +178,10 @@
 
     entity.addEventListener('targetLost', function () {
       if (state.activeIndex === art.targetIndex) state.activeIndex = null;
-      pauseVideo(art.targetIndex);
+      // MindAR hides the anchor too; hiding the plane as well guarantees no
+      // frozen last frame stays on screen.
+      plane.setAttribute('visible', false);
+      closeVideo(art.targetIndex);
       send('onTargetLost', { targetIndex: art.targetIndex, slug: art.slug });
     });
 
