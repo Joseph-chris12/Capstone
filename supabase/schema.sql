@@ -134,6 +134,7 @@ revoke all on public.scan_stats from anon, authenticated;
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
+set search_path = ''
 as $$
 begin
   new.updated_at = now();
@@ -209,6 +210,9 @@ create or replace function public.publish_bundle(
 )
 returns int
 language plpgsql
+-- Pinned empty: every name below is schema-qualified, so a caller cannot
+-- redirect them by changing search_path (Supabase linter 0011).
+set search_path = ''
 as $$
 declare
   v_version int;

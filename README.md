@@ -70,10 +70,12 @@ browser (HTTPS is required for the camera).
 
 ## Quick start on an Android phone
 
+**Full walkthrough with every click: [DEPLOY.md](DEPLOY.md).**
 No local Flutter or Node needed; GitHub Actions does the building.
 
-1. **Database.** In the Supabase dashboard → SQL Editor, run
-   `supabase/schema.sql`, then `supabase/storage.sql`. Both are safe to re-run.
+1. **Database.** Already applied to project `skyvxextruhfofmjopln`. For a new
+   project: Supabase → SQL Editor, run `supabase/schema.sql`, then
+   `supabase/storage.sql`. Both are safe to re-run.
 2. **Secrets.** GitHub repo → Settings → Secrets and variables → Actions → add:
    | Secret | Where to find it |
    |---|---|
