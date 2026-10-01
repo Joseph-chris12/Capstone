@@ -237,7 +237,30 @@ function supabaseFromEnv() {
         '           node --env-file=.env compile.js',
     );
   }
+  if (keyRole(key) === 'anon') {
+    fail(
+      'SUPABASE_SERVICE_ROLE_KEY holds the public (publishable / anon) key.\n' +
+        '         Uploads need the SECRET key: Supabase -> Project Settings -> API Keys\n' +
+        '         -> Secret keys (sb_secret_...), or the legacy "service_role" key.',
+    );
+  }
   return createClient(url, key, { auth: { persistSession: false } });
+}
+
+/**
+ * 'service_role' for a secret key, 'anon' for a public one, null if unsure.
+ * Catching the public key here beats Storage's "new row violates row-level
+ * security policy", which does not say the key is the problem.
+ */
+function keyRole(key) {
+  if (key.startsWith('sb_secret_')) return 'service_role';
+  if (key.startsWith('sb_publishable_')) return 'anon';
+  try {
+    const payload = JSON.parse(Buffer.from(key.split('.')[1], 'base64url').toString());
+    return payload.role ?? null;
+  } catch {
+    return null;
+  }
 }
 
 async function upload(sb, bucket, dest, body, contentType) {
