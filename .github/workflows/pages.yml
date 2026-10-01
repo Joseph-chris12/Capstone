@@ -10,7 +10,13 @@ name: Deploy AR test page
 on:
   push:
     branches: [main]
-    paths: ['docs/**', '.github/workflows/pages.yml']
+    paths:
+      - 'docs/**'
+      - 'lib/**'
+      - 'assets/**'
+      - 'web/**'
+      - 'pubspec.*'
+      - '.github/workflows/pages.yml'
   workflow_dispatch:
 
 permissions:
@@ -36,8 +42,23 @@ jobs:
       # with "Resource not accessible by integration", since creating the site
       # needs repo admin rights. It is a one-time manual step.
       - uses: actions/configure-pages@v5
+
+      # The Flutter app's web build, served at <site>/app/ next to the cafe
+      # test page. Same AR page and Supabase content as the APK.
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Build Flutter web app
+        run: |
+          flutter pub get
+          flutter build web --release --base-href "/${{ github.event.repository.name }}/app/"
+          mkdir -p _site
+          cp -R docs/. _site/
+          cp -R build/web _site/app
+
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: docs
+          path: _site
       - id: deployment
         uses: actions/deploy-pages@v4

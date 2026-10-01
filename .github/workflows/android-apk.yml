@@ -3,9 +3,9 @@ name: Android APK
 # Builds an installable APK so the app can be tested on a phone without a
 # local Flutter/Android SDK. Download it from the run's "Artifacts" section.
 #
-# Needs the repo secret SUPABASE_PUBLISHABLE_KEY (Supabase dashboard ->
-# Project Settings -> API keys). It is the public key, safe to ship in an APK.
-# SUPABASE_URL is optional; the app defaults to this project's instance.
+# The app's Supabase URL and publishable key default to this project
+# (lib/core/config.dart). Optional secrets SUPABASE_URL / SUPABASE_PUBLISHABLE_KEY
+# override them, e.g. to point a build at another project.
 on:
   push:
     branches: [main, 'claude/**']
@@ -46,19 +46,15 @@ jobs:
       - run: flutter analyze
       - run: flutter test
 
-      - name: Warn when the Supabase key is missing
-        if: ${{ env.KEY == '' }}
-        env:
-          KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
-        run: |
-          echo "::warning::SUPABASE_PUBLISHABLE_KEY secret is not set. The APK will build, but the app will show 'Supabase is not configured' on launch."
-
       - name: Build APK
         env:
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
         run: |
-          args=(--release --dart-define=SUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY")
+          args=(--release)
+          if [ -n "$SUPABASE_PUBLISHABLE_KEY" ]; then
+            args+=(--dart-define=SUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY")
+          fi
           if [ -n "$SUPABASE_URL" ]; then
             args+=(--dart-define=SUPABASE_URL="$SUPABASE_URL")
           fi

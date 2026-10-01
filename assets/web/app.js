@@ -33,6 +33,15 @@
         window.flutter_inappwebview.callHandler(handler, payload || {});
         return;
       }
+      // Flutter web build: this page sits in a same-origin <iframe> and the
+      // Dart side listens for messages (lib/features/ar/ar_web_view_web.dart).
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage(
+          { arGallery: true, handler: handler, payload: payload || {} },
+          window.location.origin
+        );
+        return;
+      }
     } catch (e) {
       // fall through to console so the page stays debuggable in a browser
     }

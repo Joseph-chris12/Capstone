@@ -1,11 +1,9 @@
 /// Build-time configuration.
 ///
-/// Supplied with --dart-define so keys never live in the repo:
-///
-///   flutter run --dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
-///
-/// SUPABASE_URL defaults to this project's instance and only needs passing to
-/// point the app somewhere else.
+/// Defaults point at this project's Supabase instance, so a plain
+/// `flutter run` works. Pass
+/// --dart-define=SUPABASE_URL=... / SUPABASE_PUBLISHABLE_KEY=... to point the
+/// app at another one.
 ///
 /// The publishable (anon) key is safe to ship: RLS restricts it to reading
 /// published artworks. The service role key is never used by the app — only by
@@ -21,8 +19,13 @@ class Config {
 
   /// Supabase renamed the anon key to the "publishable key". Both define names
   /// are accepted so older run configurations keep working.
-  static const _publishableKey =
-      String.fromEnvironment('SUPABASE_PUBLISHABLE_KEY');
+  ///
+  /// Defaults to this project's publishable key. It is public by design (it
+  /// ships in every APK and web build anyway); RLS is what protects the data.
+  static const _publishableKey = String.fromEnvironment(
+    'SUPABASE_PUBLISHABLE_KEY',
+    defaultValue: 'sb_publishable_1CNx6iq1rTZUk65CyINweg_R657JQ8L',
+  );
   static const _anonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
   static String get supabaseKey =>
       _publishableKey.isNotEmpty ? _publishableKey : _anonKey;

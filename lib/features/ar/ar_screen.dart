@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -9,6 +10,7 @@ import '../../data/artwork_repository.dart';
 import '../../data/scan_logger.dart';
 import '../catalog/catalog_screen.dart';
 import 'ar_bridge.dart';
+import 'ar_web_view.dart';
 import 'artwork_info_sheet.dart';
 import 'scanning_overlay.dart';
 
@@ -84,7 +86,9 @@ class _ArScreenState extends State<ArScreen> with WidgetsBindingObserver {
       return;
     }
 
-    if (!_server.isRunning()) {
+    // The web build serves ar.html itself; the localhost server is for the
+    // mobile WebView only.
+    if (!kIsWeb && !_server.isRunning()) {
       await _server.start();
     }
 
@@ -105,6 +109,10 @@ class _ArScreenState extends State<ArScreen> with WidgetsBindingObserver {
   }
 
   Future<bool> _ensureCameraPermission() async {
+    // In a browser the AR page's own getUserMedia call raises the prompt, and
+    // a denial arrives as onArError.
+    if (kIsWeb) return true;
+
     var status = await Permission.camera.status;
     if (!status.isGranted) {
       status = await Permission.camera.request();
@@ -266,6 +274,13 @@ class _ArScreenState extends State<ArScreen> with WidgetsBindingObserver {
     // an error screen the visitor is still reading.
     if (_manifest == null) return const SizedBox.shrink();
 
+    if (kIsWeb) {
+      return buildWebArView(
+        callbacks: _callbacks,
+        onCreated: (bridge) => _bridge = bridge,
+      );
+    }
+
     return InAppWebView(
       initialUrlRequest: URLRequest(
         url: WebUri('http://localhost:${Config.localServerPort}/ar.html'),
@@ -282,7 +297,7 @@ class _ArScreenState extends State<ArScreen> with WidgetsBindingObserver {
         useHybridComposition: true,
       ),
       onWebViewCreated: (controller) {
-        _bridge = ArBridge(controller);
+        _bridge = ArBridge.inAppWebView(controller);
         // Registered before the page loads, or the early onReady is missed.
         ArBridge.register(controller, _callbacks);
       },
@@ -307,6 +322,15 @@ class _ArScreenState extends State<ArScreen> with WidgetsBindingObserver {
   }
 
   Widget _buildTopBar() {
+    // Align, or the Row is stretched by the expanded Stack and its icons end
+    // up vertically centred on the screen.
+    return Align(
+      alignment: Alignment.topCenter,
+      child: _topBarContent(),
+    );
+  }
+
+  Widget _topBarContent() {
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8),

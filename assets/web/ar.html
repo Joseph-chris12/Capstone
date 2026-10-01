@@ -35,6 +35,10 @@
     pointer-events: none;
     left: -9999px;
   }
+  /* MindAR sizes the camera feed and canvas from the scene's PARENT, so the
+     parent must fill the viewport. Unsized, this div collapses and the feed
+     only covers part of the screen. */
+  #scene-root { position: fixed; inset: 0; }
   a-scene { width: 100%; height: 100%; }
 </style>
 <script src="vendor/aframe.min.js"></script>

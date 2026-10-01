@@ -106,7 +106,7 @@ create table if not exists public.scan_events (
   event_type  text not null
                 check (event_type in ('target_found', 'video_played', 'info_opened')),
   session_id  uuid not null,
-  platform    text check (platform in ('android', 'ios', 'other')),
+  platform    text check (platform in ('android', 'ios', 'web', 'other')),
   created_at  timestamptz not null default now()
 );
 

@@ -55,6 +55,19 @@ cheap, and where iOS later is a build step rather than a rewrite.
 
 ---
 
+## Try it in a browser first
+
+The same app builds for the web: the AR page runs in an iframe and talks to
+Flutter over `postMessage` instead of the WebView bridge.
+
+```bash
+flutter run -d chrome          # laptop webcam; localhost counts as secure
+```
+
+Once on `main`, the **Deploy AR test page** workflow also publishes it to
+`https://<user>.github.io/Capstone/app/`, so it can be opened on a phone's
+browser (HTTPS is required for the camera).
+
 ## Quick start on an Android phone
 
 No local Flutter or Node needed; GitHub Actions does the building.
@@ -64,9 +77,11 @@ No local Flutter or Node needed; GitHub Actions does the building.
 2. **Secrets.** GitHub repo → Settings → Secrets and variables → Actions → add:
    | Secret | Where to find it |
    |---|---|
-   | `SUPABASE_PUBLISHABLE_KEY` | Supabase → Project Settings → API keys (publishable / anon) |
    | `SUPABASE_URL` | `https://skyvxextruhfofmjopln.supabase.co` |
-   | `SUPABASE_SERVICE_ROLE_KEY` | same page, **secret** key. Used only by the publish workflow |
+   | `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Project Settings → API keys, **secret** key. Used only by the publish workflow |
+
+   The app's URL and publishable key are built in (`lib/core/config.dart`);
+   the publishable key is public by design.
 3. **Content.** Actions → **Publish content** → Run workflow. It compiles
    `tools/compile-targets/artworks.json` and uploads everything.
 4. **App.** Actions → **Android APK** → latest run → download `ar-gallery-apk`,

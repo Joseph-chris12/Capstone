@@ -39,11 +39,13 @@ class ScanLogger {
     }
   }
 
-  static String get _platform => switch (defaultTargetPlatform) {
-        TargetPlatform.android => 'android',
-        TargetPlatform.iOS => 'ios',
-        _ => 'other',
-      };
+  static String get _platform => kIsWeb
+      ? 'web'
+      : switch (defaultTargetPlatform) {
+          TargetPlatform.android => 'android',
+          TargetPlatform.iOS => 'ios',
+          _ => 'other',
+        };
 
   static String _randomUuidV4() {
     final rnd = Random.secure();
