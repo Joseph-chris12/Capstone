@@ -28,7 +28,8 @@ finished MP4s.
         │ manifest JSON            ▲ targetFound/Lost
         ▼                          │
 ┌─ Supabase ──────────────────────────────────────┐
-│  Postgres: artworks, target_bundles             │
+│  Postgres: artists, artworks, target_bundles,   │
+│            scan_events                          │
 │  Storage:  ar-targets/(.mind)  ar-videos/(.mp4) │
 └─────────────────────────────────────────────────┘
 ```
@@ -54,6 +55,31 @@ cheap, and where iOS later is a build step rather than a rewrite.
 
 ---
 
+## Quick start on an Android phone
+
+No local Flutter or Node needed; GitHub Actions does the building.
+
+1. **Database.** In the Supabase dashboard → SQL Editor, run
+   `supabase/schema.sql`, then `supabase/storage.sql`. Both are safe to re-run.
+2. **Secrets.** GitHub repo → Settings → Secrets and variables → Actions → add:
+   | Secret | Where to find it |
+   |---|---|
+   | `SUPABASE_PUBLISHABLE_KEY` | Supabase → Project Settings → API keys (publishable / anon) |
+   | `SUPABASE_URL` | `https://skyvxextruhfofmjopln.supabase.co` |
+   | `SUPABASE_SERVICE_ROLE_KEY` | same page, **secret** key. Used only by the publish workflow |
+3. **Content.** Actions → **Publish content** → Run workflow. It compiles
+   `tools/compile-targets/artworks.json` and uploads everything.
+4. **App.** Actions → **Android APK** → latest run → download `ar-gallery-apk`,
+   unzip, copy the `.apk` to the phone and open it (allow "install unknown apps").
+5. **Scan.** Open `docs/target-preview.jpg` on a laptop screen (or print it) and
+   point the phone at it. The sample clip plays on the poster.
+
+To add your own artwork: put the photo in `tools/compile-targets/targets/`, the
+clip in `videos/`, add an entry to `artworks.json`, push, and re-run
+**Publish content**. No new APK needed.
+
+---
+
 ## Setup
 
 ### 1. Supabase
@@ -65,8 +91,19 @@ supabase/schema.sql
 supabase/storage.sql
 ```
 
-That creates the `artworks` and `target_bundles` tables, RLS policies, the two
-public storage buckets, and the `publish_bundle()` function.
+That creates the tables below, RLS policies, the two public storage buckets,
+and the `publish_bundle()` function.
+
+| Table | What it holds | App (anon key) can |
+|---|---|---|
+| `artists` | name, bio, photo, instagram | read |
+| `artworks` | one trackable photo: title, `artist_id`, description, `target_index`, video path + overlay geometry, `thumbnail_path` | read active rows |
+| `target_bundles` | versioned compiled `.mind` files; exactly one `is_current` | read the current one |
+| `scan_events` | anonymous log: artwork, event, random per-launch session id, platform | insert only |
+
+`scan_stats` is a view of scans and distinct visitors per artwork per day, for
+reporting; query it from the SQL editor. Removing an artwork from
+`artworks.json` and republishing deletes its row, and its scan history with it.
 
 > **Free tier projects pause after a week of inactivity.** Open the dashboard a
 > day before any demo, or the app will fail to load the gallery.
@@ -77,10 +114,11 @@ public storage buckets, and the `publish_bundle()` function.
 cd tools/compile-targets
 npm install                      # also fetches Chromium for the compiler
 cp .env.example .env             # fill in SUPABASE_SERVICE_ROLE_KEY
-cp artworks.example.json artworks.json
+# artworks.json already exists with a working sample; add your entries to it
 ```
 
-Put your target photos in `targets/` and your videos in `videos/`, list them in
+Put your target photos in `targets/` and your videos in `videos/` (both are
+committed, so the **Publish content** workflow can use them), list them in
 `artworks.json`, then:
 
 ```bash
@@ -97,9 +135,8 @@ its neighbour's video with no visible error.
 ### 3. Run the app
 
 ```bash
-flutter run \
-  --dart-define=SUPABASE_URL=https://xxxx.supabase.co \
-  --dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxx
+flutter run --dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxx
+# add --dart-define=SUPABASE_URL=... to point at a different project
 ```
 
 The publishable (anon) key is safe to ship — RLS limits it to reading published

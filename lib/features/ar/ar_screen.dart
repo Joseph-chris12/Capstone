@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/config.dart';
 import '../../data/artwork.dart';
 import '../../data/artwork_repository.dart';
+import '../../data/scan_logger.dart';
 import '../catalog/catalog_screen.dart';
 import 'ar_bridge.dart';
 import 'artwork_info_sheet.dart';
@@ -38,6 +39,7 @@ class _ArScreenState extends State<ArScreen> with WidgetsBindingObserver {
   );
 
   ArBridge? _bridge;
+  ScanLogger? _scanLogger;
 
   ArStage _stage = ArStage.starting;
   String _errorMessage = '';
@@ -128,6 +130,7 @@ class _ArScreenState extends State<ArScreen> with WidgetsBindingObserver {
       final manifest = await repo.fetchManifest();
       if (!mounted) return;
       _manifest = manifest;
+      _scanLogger ??= ScanLogger(Supabase.instance.client);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -166,6 +169,7 @@ class _ArScreenState extends State<ArScreen> with WidgetsBindingObserver {
           });
         },
         onTargetFound: (event) {
+          _logScan(event);
           if (!mounted) return;
           setState(() {
             _current = event;
@@ -189,6 +193,16 @@ class _ArScreenState extends State<ArScreen> with WidgetsBindingObserver {
           _showSnack('AR error ($stage): $message');
         },
       );
+
+  void _logScan(ArTargetEvent event) {
+    final artworks = _manifest?.artworks ?? const <Artwork>[];
+    for (final a in artworks) {
+      if (a.slug == event.slug) {
+        _scanLogger?.targetFound(a.id);
+        return;
+      }
+    }
+  }
 
   void _showSnack(String text) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));

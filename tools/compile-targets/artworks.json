@@ -1,0 +1,16 @@
+{
+  "//": "Array ORDER defines target_index. Paths are relative to this directory. Add one entry per photo in targets/, each with its own clip in videos/. The 'espresso' entry is a working sample: show docs/target-preview.jpg on a laptop screen and point the phone at it.",
+  "artworks": [
+    {
+      "slug": "espresso",
+      "title": "Espresso",
+      "artist": "Capstone Team",
+      "artistBio": "Sample target used to test the AR pipeline end to end.",
+      "year": "2026",
+      "description": "Point the camera at the poster and the clip plays on top of it.",
+      "target": "targets/espresso.jpg",
+      "video": "videos/espresso.mp4",
+      "videoMode": "fullframe"
+    }
+  ]
+}

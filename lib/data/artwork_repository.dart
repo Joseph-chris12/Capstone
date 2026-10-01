@@ -58,7 +58,7 @@ class ArtworkRepository {
 
     final rows = await _client
         .from('artworks')
-        .select()
+        .select('*, artists(name)')
         .eq('is_active', true)
         .order('target_index');
 
@@ -67,6 +67,8 @@ class ArtworkRepository {
         .map((r) => Artwork.fromRow(
               r,
               (path) => _publicUrl(Config.videosBucket, path),
+              resolveThumbnailUrl: (path) =>
+                  _publicUrl(Config.targetsBucket, path),
             ))
         .toList();
 

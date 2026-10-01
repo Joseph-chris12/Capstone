@@ -2,9 +2,10 @@
 ///
 /// Supplied with --dart-define so keys never live in the repo:
 ///
-///   flutter run \
-///     --dart-define=SUPABASE_URL=https://xxxx.supabase.co \
-///     --dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+///   flutter run --dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+///
+/// SUPABASE_URL defaults to this project's instance and only needs passing to
+/// point the app somewhere else.
 ///
 /// The publishable (anon) key is safe to ship: RLS restricts it to reading
 /// published artworks. The service role key is never used by the app — only by
@@ -12,7 +13,11 @@
 class Config {
   const Config._();
 
-  static const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
+  /// Defaults to this project's Supabase instance; override for another one.
+  static const supabaseUrl = String.fromEnvironment(
+    'SUPABASE_URL',
+    defaultValue: 'https://skyvxextruhfofmjopln.supabase.co',
+  );
 
   /// Supabase renamed the anon key to the "publishable key". Both define names
   /// are accepted so older run configurations keep working.
@@ -36,6 +41,5 @@ class Config {
 
   static String get configurationError =>
       'Supabase is not configured. Run with:\n'
-      '  --dart-define=SUPABASE_URL=...\n'
       '  --dart-define=SUPABASE_PUBLISHABLE_KEY=...';
 }

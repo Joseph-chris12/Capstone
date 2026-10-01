@@ -21,6 +21,7 @@ class Artwork {
     this.planeHeight,
     this.offsetX = 0,
     this.offsetY = 0,
+    this.thumbnailUrl,
   });
 
   final String id;
@@ -37,6 +38,10 @@ class Artwork {
   final double aspectRatio;
 
   final String videoUrl;
+
+  /// The target photo, for the catalog list. Null for artworks published
+  /// before thumbnails were uploaded.
+  final String? thumbnailUrl;
 
   /// 'fullframe' — the clip replaces the canvas.
   /// 'cutout'    — green-screen clip, keyed at runtime, may overflow the canvas.
@@ -62,22 +67,34 @@ class Artwork {
     return double.tryParse(v.toString());
   }
 
-  /// [resolveVideoUrl] turns the stored storage path into a public URL, so the
-  /// model stays free of any Supabase types.
+  /// [resolveVideoUrl] and [resolveThumbnailUrl] turn stored storage paths
+  /// into public URLs, so the model stays free of any Supabase types.
+  ///
+  /// The artist arrives embedded as `artists: {name, ...}` from the
+  /// `select('*, artists(name)')` join; a flat `artist` string is still
+  /// accepted.
   factory Artwork.fromRow(
     Map<String, dynamic> row,
-    String Function(String path) resolveVideoUrl,
-  ) {
+    String Function(String path) resolveVideoUrl, {
+    String Function(String path)? resolveThumbnailUrl,
+  }) {
+    final artistRow = row['artists'];
+    final thumbnailPath = row['thumbnail_path'] as String?;
     return Artwork(
       id: row['id'] as String,
       slug: row['slug'] as String,
       title: row['title'] as String,
-      artist: row['artist'] as String?,
+      artist: artistRow is Map
+          ? artistRow['name'] as String?
+          : row['artist'] as String?,
       year: row['year'] as String?,
       description: row['description'] as String?,
       targetIndex: (row['target_index'] as num).toInt(),
       aspectRatio: _toDouble(row['aspect_ratio'], fallback: 1),
       videoUrl: resolveVideoUrl(row['video_path'] as String),
+      thumbnailUrl: thumbnailPath == null || resolveThumbnailUrl == null
+          ? null
+          : resolveThumbnailUrl(thumbnailPath),
       videoMode: (row['video_mode'] as String?) ?? 'fullframe',
       chromaColor: row['chroma_color'] as String?,
       planeWidth: _toNullableDouble(row['plane_width']),

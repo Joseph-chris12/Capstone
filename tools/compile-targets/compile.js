@@ -44,6 +44,15 @@ const IMAGE_MIME = {
   '.png': 'image/png',
 };
 
+function slugify(text) {
+  return String(text)
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 function fail(message) {
   console.error(`\n  ERROR  ${message}\n`);
   process.exit(1);
@@ -262,15 +271,31 @@ async function publish(artworks, compiled, mindBytes) {
     );
     console.log(`    ar-videos/${videoPath}`);
 
+    const targetExt = path.extname(a.target).toLowerCase();
+    const thumbnailPath = `thumbs/${a.slug}${targetExt}`;
+    await upload(
+      sb,
+      'ar-targets',
+      thumbnailPath,
+      await readFile(path.resolve(HERE, a.target)),
+      IMAGE_MIME[targetExt],
+    );
+    console.log(`    ar-targets/${thumbnailPath}`);
+
+    const artistName = (a.artist ?? '').trim();
+
     rows.push({
       slug: a.slug,
       title: a.title,
-      artist: a.artist ?? '',
+      artist_slug: artistName ? slugify(artistName) : '',
+      artist_name: artistName,
+      artist_bio: a.artistBio ?? '',
       year: a.year ?? '',
       description: a.description ?? '',
       target_index: i,
       aspect_ratio: compiled.targets[i].aspectRatio,
       video_path: videoPath,
+      thumbnail_path: thumbnailPath,
       video_mode: a.videoMode ?? 'fullframe',
       chroma_color: a.chromaColor ?? '',
       plane_width: a.planeWidth ?? '',

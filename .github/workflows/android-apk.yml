@@ -1,0 +1,71 @@
+name: Android APK
+
+# Builds an installable APK so the app can be tested on a phone without a
+# local Flutter/Android SDK. Download it from the run's "Artifacts" section.
+#
+# Needs the repo secret SUPABASE_PUBLISHABLE_KEY (Supabase dashboard ->
+# Project Settings -> API keys). It is the public key, safe to ship in an APK.
+# SUPABASE_URL is optional; the app defaults to this project's instance.
+on:
+  push:
+    branches: [main, 'claude/**']
+    paths:
+      - 'lib/**'
+      - 'test/**'
+      - 'android/**'
+      - 'assets/**'
+      - 'pubspec.*'
+      - '.github/workflows/android-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+
+      - name: Warn when the Supabase key is missing
+        if: ${{ env.KEY == '' }}
+        env:
+          KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          echo "::warning::SUPABASE_PUBLISHABLE_KEY secret is not set. The APK will build, but the app will show 'Supabase is not configured' on launch."
+
+      - name: Build APK
+        env:
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        run: |
+          args=(--release --dart-define=SUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY")
+          if [ -n "$SUPABASE_URL" ]; then
+            args+=(--dart-define=SUPABASE_URL="$SUPABASE_URL")
+          fi
+          flutter build apk "${args[@]}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ar-gallery-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 30

@@ -28,7 +28,12 @@ class CatalogScreen extends StatelessWidget {
                 ].join(' · ');
 
                 return ListTile(
-                  leading: CircleAvatar(child: Text('${i + 1}')),
+                  leading: CircleAvatar(
+                    foregroundImage: a.thumbnailUrl == null
+                        ? null
+                        : NetworkImage(a.thumbnailUrl!),
+                    child: Text('${i + 1}'),
+                  ),
                   title: Text(a.title),
                   subtitle: subtitle.isEmpty ? null : Text(subtitle),
                   trailing: a.isCutout
