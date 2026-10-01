@@ -1,0 +1,123 @@
+{
+  "//": "Array ORDER defines target_index. Paths are relative to this directory. Each target is the first frame of its clip, so the video lines up exactly with what the camera locks onto. Originals are in incoming/.",
+  "artworks": [
+    {
+      "slug": "social-media-brain",
+      "title": "Digital & Humans",
+      "artist": "Mutaz Ismail",
+      "description": "Poster exhibition entry from Iraq. Animated with Google Flow.",
+      "target": "targets/social-media-brain.jpg",
+      "video": "videos/social-media-brain.mp4",
+      "videoMode": "fullframe"
+    },
+    {
+      "slug": "waves",
+      "title": "Behind the Blinds",
+      "artist": "Suzani Azmin",
+      "description": "Poster exhibition entry from Malaysia. Animated with Google Flow.",
+      "target": "targets/waves.jpg",
+      "video": "videos/waves.mp4",
+      "videoMode": "fullframe",
+      "//": "Repeating stripes give the tracker almost no distinct features: in testing neither this frame nor a crop of the photo was recognised. Kept for completeness."
+    },
+    {
+      "slug": "eye-of-the-book",
+      "title": "Menjelajah Dunia Digital Tak Perlu Kau Tafsir",
+      "description": "Poster exhibition entry from Indonesia. Animated with Google Flow.",
+      "target": "targets/eye-of-the-book.jpg",
+      "video": "videos/eye-of-the-book.mp4",
+      "videoMode": "fullframe"
+    },
+    {
+      "slug": "collage-head",
+      "title": "Societal Transformation",
+      "artist": "Andrej Hascak",
+      "description": "Poster exhibition entry from Slovakia. Animated with Google Flow.",
+      "target": "targets/collage-head.jpg",
+      "video": "videos/collage-head.mp4",
+      "videoMode": "fullframe"
+    },
+    {
+      "slug": "digital-face",
+      "title": "The Effect of Intelligence on Humans",
+      "artist": "Dr. Esam Ibrahim Al-Kubisy",
+      "description": "Poster exhibition entry from Iraq. Animated with Google Flow.",
+      "target": "targets/digital-face.jpg",
+      "video": "videos/digital-face.mp4",
+      "videoMode": "fullframe"
+    },
+    {
+      "slug": "geometric-figures",
+      "title": "The Irony",
+      "artist": "Angela Oscario",
+      "description": "Poster exhibition entry from Indonesia. Animated with Google Flow.",
+      "target": "targets/geometric-figures.jpg",
+      "video": "videos/geometric-figures.mp4",
+      "videoMode": "fullframe"
+    },
+    {
+      "slug": "brain-ribbon",
+      "title": "Digital Transmission",
+      "artist": "Huruiying",
+      "description": "Poster exhibition entry from China. Animated with Google Flow.",
+      "target": "targets/brain-ribbon.jpg",
+      "video": "videos/brain-ribbon.mp4",
+      "videoMode": "fullframe"
+    },
+    {
+      "slug": "jangan-percaya",
+      "title": "HOAX",
+      "artist": "Egy Putra Nanda",
+      "description": "Poster exhibition entry from Indonesia. Animated with Google Flow.",
+      "target": "targets/jangan-percaya.jpg",
+      "video": "videos/jangan-percaya.mp4",
+      "videoMode": "fullframe"
+    },
+    {
+      "slug": "bound-in-cords",
+      "title": "Social Media is My Bully",
+      "artist": "Sandieka",
+      "description": "Poster exhibition entry from Indonesia. Animated with Google Flow.",
+      "target": "targets/bound-in-cords.jpg",
+      "video": "videos/bound-in-cords.mp4",
+      "videoMode": "fullframe"
+    },
+    {
+      "slug": "pixel-hand",
+      "title": "No More Isolation for All of Us",
+      "artist": "Hyungjoo A.Kim",
+      "description": "Poster exhibition entry from the USA. Animated with Google Flow.",
+      "target": "targets/pixel-hand.jpg",
+      "video": "videos/pixel-hand.mp4",
+      "videoMode": "fullframe"
+    },
+    {
+      "slug": "laptop-landscape",
+      "title": "Laptop Landscape (test)",
+      "description": "Test target: the laptop lock screen. Animated clip filmed on a phone.",
+      "target": "targets/laptop-landscape.jpg",
+      "video": "videos/laptop-landscape.mp4",
+      "videoMode": "fullframe"
+    },
+    {
+      "slug": "wire-head",
+      "title": "Digital Humans",
+      "artist": "Elizaveta Fudimova",
+      "description": "Poster exhibition entry from Russia. Animated with Google Flow.",
+      "target": "targets/wire-head.jpg",
+      "video": "videos/wire-head.mp4",
+      "videoMode": "fullframe"
+    },
+    {
+      "slug": "espresso",
+      "title": "Espresso",
+      "artist": "Capstone Team",
+      "artistBio": "Sample target used to test the AR pipeline end to end.",
+      "year": "2026",
+      "description": "Point the camera at the poster and the clip plays on top of it.",
+      "target": "targets/espresso.jpg",
+      "video": "videos/espresso.mp4",
+      "videoMode": "fullframe"
+    }
+  ]
+}

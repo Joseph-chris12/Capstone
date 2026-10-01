@@ -17,12 +17,13 @@ Map<String, dynamic> row({
       'id': 'id-$slug',
       'slug': slug,
       'title': 'Title $slug',
-      'artist': 'Artist',
+      'artists': {'name': 'Artist'},
       'year': '2026',
       'description': 'A description.',
       'target_index': targetIndex,
       'aspect_ratio': aspectRatio,
       'video_path': '$slug.mp4',
+      'thumbnail_path': 'thumbs/$slug.jpg',
       'video_mode': videoMode,
       'chroma_color': chromaColor,
       'plane_width': planeWidth,
@@ -45,6 +46,29 @@ void main() {
       expect(a.isCutout, isFalse);
       expect(a.planeWidth, isNull);
       expect(a.offsetX, 0);
+    });
+
+    test('reads the artist from the embedded artists join', () {
+      final a = Artwork.fromRow(row(slug: 'moon', targetIndex: 0), fakeUrl);
+      expect(a.artist, 'Artist');
+    });
+
+    test('tolerates an artwork with no artist', () {
+      final r = row(slug: 'moon', targetIndex: 0)..['artists'] = null;
+      expect(Artwork.fromRow(r, fakeUrl).artist, isNull);
+    });
+
+    test('resolves the thumbnail only when a resolver is given', () {
+      final r = row(slug: 'moon', targetIndex: 0);
+      expect(Artwork.fromRow(r, fakeUrl).thumbnailUrl, isNull);
+      expect(
+        Artwork.fromRow(
+          r,
+          fakeUrl,
+          resolveThumbnailUrl: (p) => 'https://example.test/targets/$p',
+        ).thumbnailUrl,
+        'https://example.test/targets/thumbs/moon.jpg',
+      );
     });
 
     test('maps a cutout row with its own plane geometry', () {

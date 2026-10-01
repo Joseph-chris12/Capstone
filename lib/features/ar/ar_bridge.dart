@@ -57,73 +57,100 @@ class ArTargetEvent {
   final String? description;
 
   factory ArTargetEvent.fromJson(Map<String, dynamic> j) => ArTargetEvent(
-        targetIndex: (j['targetIndex'] as num).toInt(),
-        slug: j['slug'] as String? ?? '',
-        title: j['title'] as String? ?? '',
-        artist: j['artist'] as String?,
-        year: j['year'] as String?,
-        description: j['description'] as String?,
-      );
+    targetIndex: (j['targetIndex'] as num).toInt(),
+    slug: j['slug'] as String? ?? '',
+    title: j['title'] as String? ?? '',
+    artist: j['artist'] as String?,
+    year: j['year'] as String?,
+    description: j['description'] as String?,
+  );
 }
 
-/// Wraps the WebView so the rest of the app never touches JavaScript strings.
+/// Routes one event from assets/web/app.js to the matching callback.
+///
+/// Shared by both transports: the InAppWebView JavaScript handlers on mobile
+/// and the iframe postMessage listener on web.
+void dispatchArEvent(ArCallbacks cb, String name, Map<String, dynamic> j) {
+  switch (name) {
+    case 'onReady':
+      cb.onReady();
+    case 'onSceneReady':
+      cb.onSceneReady((j['targetCount'] as num?)?.toInt() ?? 0);
+    case 'onArReady':
+      cb.onArReady((j['targetCount'] as num?)?.toInt() ?? 0);
+    case 'onArError':
+      cb.onArError(j['message'] as String? ?? 'AR error');
+    case 'onTargetFound':
+      cb.onTargetFound(ArTargetEvent.fromJson(j));
+    case 'onTargetLost':
+      cb.onTargetLost((j['targetIndex'] as num?)?.toInt() ?? -1);
+    case 'onPlaybackBlocked':
+      cb.onPlaybackBlocked((j['targetIndex'] as num?)?.toInt() ?? -1);
+    case 'onVideoError':
+      cb.onVideoError(
+        (j['targetIndex'] as num?)?.toInt() ?? -1,
+        j['message'] as String? ?? 'video error',
+      );
+    case 'onError':
+      cb.onError(
+        j['stage'] as String? ?? 'unknown',
+        j['message'] as String? ?? 'error',
+      );
+  }
+}
+
+/// Every event name app.js sends.
+const arEventNames = [
+  'onReady',
+  'onSceneReady',
+  'onArReady',
+  'onArError',
+  'onTargetFound',
+  'onTargetLost',
+  'onPlaybackBlocked',
+  'onVideoError',
+  'onError',
+];
+
+/// Drives the AR page so the rest of the app never touches JavaScript strings.
+///
+/// [_evaluate] runs a script inside the page: the WebView controller on
+/// mobile, the iframe's window on web.
 class ArBridge {
-  ArBridge(this._controller);
+  ArBridge(this._evaluate);
 
-  final InAppWebViewController _controller;
+  ArBridge.inAppWebView(InAppWebViewController controller)
+    : this((source) => controller.evaluateJavascript(source: source));
 
-  static Map<String, dynamic> _arg(List<dynamic> args) =>
-      args.isEmpty ? const {} : Map<String, dynamic>.from(args.first as Map);
+  final Future<void> Function(String source) _evaluate;
 
   /// Must be called in onWebViewCreated, before the page loads, or the early
   /// `onReady` event fires into nothing and the app waits forever.
-  static void register(
-    InAppWebViewController controller,
-    ArCallbacks cb,
-  ) {
-    void on(String name, void Function(Map<String, dynamic>) handle) {
+  static void register(InAppWebViewController controller, ArCallbacks cb) {
+    for (final name in arEventNames) {
       controller.addJavaScriptHandler(
         handlerName: name,
-        callback: (args) => handle(_arg(args)),
+        callback: (args) => dispatchArEvent(
+          cb,
+          name,
+          args.isEmpty
+              ? const {}
+              : Map<String, dynamic>.from(args.first as Map),
+        ),
       );
     }
-
-    on('onReady', (_) => cb.onReady());
-    on('onSceneReady', (j) => cb.onSceneReady((j['targetCount'] as num?)?.toInt() ?? 0));
-    on('onArReady', (j) => cb.onArReady((j['targetCount'] as num?)?.toInt() ?? 0));
-    on('onArError', (j) => cb.onArError(j['message'] as String? ?? 'AR error'));
-    on('onTargetFound', (j) => cb.onTargetFound(ArTargetEvent.fromJson(j)));
-    on('onTargetLost', (j) => cb.onTargetLost((j['targetIndex'] as num?)?.toInt() ?? -1));
-    on('onPlaybackBlocked',
-        (j) => cb.onPlaybackBlocked((j['targetIndex'] as num?)?.toInt() ?? -1));
-    on(
-      'onVideoError',
-      (j) => cb.onVideoError(
-        (j['targetIndex'] as num?)?.toInt() ?? -1,
-        j['message'] as String? ?? 'video error',
-      ),
-    );
-    on(
-      'onError',
-      (j) => cb.onError(
-        j['stage'] as String? ?? 'unknown',
-        j['message'] as String? ?? 'error',
-      ),
-    );
   }
 
   /// The manifest is JSON-encoded, so it is a valid JavaScript literal and
   /// needs no escaping beyond what jsonEncode already does.
   Future<void> init(ArManifest manifest) =>
-      _call('window.ARApp.init(${jsonEncode(manifest.toJson())})');
+      _evaluate('window.ARApp.init(${jsonEncode(manifest.toJson())})');
 
-  Future<void> start() => _call('window.ARApp.start()');
-  Future<void> stop() => _call('window.ARApp.stop()');
-  Future<void> pause() => _call('window.ARApp.pause()');
-  Future<void> resume() => _call('window.ARApp.resume()');
-  Future<void> resumePlayback() => _call('window.ARApp.resumePlayback()');
-  Future<void> setMuted(bool muted) => _call('window.ARApp.setMuted($muted)');
-
-  Future<void> _call(String source) =>
-      _controller.evaluateJavascript(source: source);
+  Future<void> start() => _evaluate('window.ARApp.start()');
+  Future<void> stop() => _evaluate('window.ARApp.stop()');
+  Future<void> pause() => _evaluate('window.ARApp.pause()');
+  Future<void> resume() => _evaluate('window.ARApp.resume()');
+  Future<void> resumePlayback() => _evaluate('window.ARApp.resumePlayback()');
+  Future<void> setMuted(bool muted) =>
+      _evaluate('window.ARApp.setMuted($muted)');
 }

@@ -1,0 +1,58 @@
+name: Publish content
+
+# Compiles tools/compile-targets/artworks.json (photos in targets/, clips in
+# videos/) into a MindAR bundle, uploads everything to Supabase Storage and
+# rewrites the artworks/artists rows in one transaction via publish_bundle().
+# The app picks the new content up on its next launch, with no new APK.
+#
+# Needs repo secrets SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY. The service
+# role key bypasses RLS: it lives only here, never in the app.
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Compile only: upload nothing, leave the database untouched'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-content
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: tools/compile-targets
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: tools/compile-targets/package-lock.json
+
+      - run: npm ci
+      - run: npx playwright install-deps chromium
+
+      - name: Compile and publish
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            node compile.js --dry-run
+          else
+            node compile.js
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: targets-mind
+          path: tools/compile-targets/out/targets.mind

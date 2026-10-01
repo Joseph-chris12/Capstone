@@ -56,17 +56,21 @@ class ArtworkRepository {
       );
     }
 
+    // ascending must be explicit: supabase-dart's order() defaults to
+    // descending, which validateOrdering() would reject for 2+ artworks.
     final rows = await _client
         .from('artworks')
-        .select()
+        .select('*, artists(name)')
         .eq('is_active', true)
-        .order('target_index');
+        .order('target_index', ascending: true);
 
     final artworks = (rows as List)
         .cast<Map<String, dynamic>>()
         .map((r) => Artwork.fromRow(
               r,
               (path) => _publicUrl(Config.videosBucket, path),
+              resolveThumbnailUrl: (path) =>
+                  _publicUrl(Config.targetsBucket, path),
             ))
         .toList();
 
