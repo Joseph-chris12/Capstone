@@ -105,6 +105,16 @@
         // was restarted) rejects with AbortError: that is not a block.
         if (err && err.name === 'AbortError') return;
         if (state.activeIndex !== index) return;
+        // Only NotAllowedError means autoplay was refused. Anything else
+        // (e.g. NotSupportedError, an undecodable clip) is a video error, and
+        // a tap-to-play button could not fix it.
+        if (err && err.name && err.name !== 'NotAllowedError') {
+          send('onVideoError', {
+            targetIndex: index,
+            message: err.message || err.name
+          });
+          return;
+        }
         // Autoplay was refused. Dart shows a tap-to-play affordance; the
         // gesture is forwarded back through ARApp.resumePlayback().
         send('onPlaybackBlocked', {

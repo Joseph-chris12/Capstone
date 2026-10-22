@@ -1,11 +1,20 @@
-# AR Gallery
+# ARise — AR Gallery
 
 Point a phone at a painting in the campus gallery and the painting moves.
 
 Built in the shape of [Artivive](https://www.artivive.com/): a photo of the
 artwork is compiled into a tracking target, and a short video is overlaid on the
-real canvas through the camera. The app opens straight into the viewfinder —
-there is no menu to get through first.
+real canvas through the camera.
+
+The app has two tabs and a feedback page, styled after the Figma design and
+`DESIGN.md` ("Luminous Spatial": parchment canvas, espresso ink, glass pills,
+Plus Jakarta Sans):
+
+| Screen | What it does |
+|---|---|
+| **Scan** | Live camera with corner guides; status pill, mute, "N Scanned" (opens the artwork list); a glass card with the recognised artwork |
+| **Tutorial** | How it works, a drag-to-reveal before/after, tips; shown first on a new install |
+| **Feedback** | Category, 1–5 rating, details, optional photo and email; saved to Supabase (`supabase/feedback.sql`) |
 
 The animations are produced by hand in Google Flow (Veo) and uploaded as
 finished MP4s.
@@ -210,22 +219,31 @@ much room to spare.
 
 ```
 lib/
+  app_shell.dart                header, Scan/Tutorial tabs, bottom bar
   core/config.dart              build-time Supabase config
+  core/theme.dart               DESIGN.md tokens: colours, type, radii
+  core/onboarding.dart          "tutorial seen" flag
+  ui/                           glass panels, pill buttons, chips, chrome
   data/                         Artwork model + repository
-  features/ar/                  AR home screen, JS bridge, overlays
-  features/catalog/             secondary artwork list
+  features/ar/                  Scan tab, JS bridge, reticle, artwork card
+  features/tutorial/            Tutorial tab
+  features/feedback/            Feedback form, model, Supabase submit
+  features/catalog/             artwork list
+assets/fonts/                   Plus Jakarta Sans (SIL OFL)
+assets/images/                  logo + tutorial images from the Figma file
 assets/web/
   ar.html, app.js               the AR scene
   vendor/                       A-Frame, MindAR, chromakey (committed)
 supabase/
   schema.sql, storage.sql       tables, RLS, publish_bundle()
+  feedback.sql                  feedback table + private photo bucket
 tools/compile-targets/          Node + headless Chromium compiler
 ```
 
 ## Tests
 
 ```bash
-flutter test      # model parsing + target-index validation
+flutter test      # models, target-index validation, feedback form, tabs
 flutter analyze
 ```
 

@@ -43,6 +43,9 @@ class _WebArViewState extends State<_WebArView> {
       ..src = ui_web.assetManager.getAssetUrl('assets/web/ar.html')
       ..allow = 'camera; autoplay; fullscreen'
       ..style.border = 'none'
+      // The AR page takes no input; letting taps fall through keeps the
+      // Flutter controls drawn over the camera clickable.
+      ..style.pointerEvents = 'none'
       ..style.width = '100%'
       ..style.height = '100%';
     ui_web.platformViewRegistry.registerViewFactory(

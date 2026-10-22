@@ -23,6 +23,12 @@ with RLS on. Storage has two public buckets, `ar-targets` and `ar-videos`.
 To recreate it on another project: Supabase → **SQL Editor** → paste and run
 `supabase/schema.sql`, then `supabase/storage.sql`. Both are safe to re-run.
 
+**Feedback form:** also run `supabase/feedback.sql` on the project the app
+points at. It adds the `feedback` table and a private `feedback-attachments`
+bucket; the app can add feedback but never read it back. Until it is run, the
+form says "Feedback is not set up on the server yet."
+Read submissions in **Table Editor → feedback**.
+
 ## 2. Add two GitHub secrets (one time)
 
 GitHub → this repo → **Settings → Secrets and variables → Actions →
@@ -83,9 +89,12 @@ Point the camera at one of the posters — or at its photo on a laptop screen.
 Within a few seconds the clip should play on top of it and the title, artist
 and description slide up from the bottom.
 
+- A new install opens on the **Tutorial** tab; tap **Try First Scan Now** or
+  the **Scan** tab. Later launches open straight on Scan.
 - If **Tap to play** appears, tap it (some phones block autoplay).
-- Sound starts muted; use the speaker icon top-left.
-- The grid icon top-right lists every artwork.
+- Sound starts muted; use the speaker button (top-left, or on the artwork card).
+- After the first recognition, the **Scanned** pill top-right lists every
+  artwork; **Feedback** is top-right in the header.
 - **Behind the Blinds** (the blue/red waves) is not recognised: its repeating
   stripes give the tracker too little to lock onto.
 

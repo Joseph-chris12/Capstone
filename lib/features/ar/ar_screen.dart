@@ -5,9 +5,12 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/config.dart';
+import '../../core/theme.dart';
 import '../../data/artwork.dart';
 import '../../data/artwork_repository.dart';
 import '../../data/scan_logger.dart';
+import '../../ui/chrome.dart';
+import '../../ui/components.dart';
 import '../catalog/catalog_screen.dart';
 import 'ar_bridge.dart';
 import 'ar_web_view.dart';
@@ -26,9 +29,15 @@ enum ArStage {
   arFailed,
 }
 
-/// The app's home screen: opens straight into the camera, like Artivive.
+/// The Scan tab: the live camera with the tracking HUD (Figma "Home").
 class ArScreen extends StatefulWidget {
-  const ArScreen({super.key});
+  const ArScreen({super.key, this.active = true, this.onArtworksLoaded});
+
+  /// False while another tab is showing: the camera pauses until it is back.
+  final bool active;
+
+  /// Reports the published gallery once loaded, for the artwork list.
+  final ValueChanged<List<Artwork>>? onArtworksLoaded;
 
   @override
   State<ArScreen> createState() => _ArScreenState();
@@ -51,6 +60,9 @@ class _ArScreenState extends State<ArScreen> with WidgetsBindingObserver {
   bool _playbackBlocked = false;
   bool _pageReady = false;
 
+  /// Artworks recognised this session, most recent last.
+  final _scanned = <String>[];
+
   @override
   void initState() {
     super.initState();
@@ -66,10 +78,24 @@ class _ArScreenState extends State<ArScreen> with WidgetsBindingObserver {
   }
 
   @override
+  void didUpdateWidget(ArScreen old) {
+    super.didUpdateWidget(old);
+    if (old.active == widget.active) return;
+    // Switching tabs releases the camera, like backgrounding the app.
+    if (widget.active) {
+      _bridge?.resume();
+    } else {
+      _bridge?.pause();
+      if (_current != null) setState(() => _current = null);
+    }
+  }
+
+  @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // Release the camera when backgrounded; Android will not hand it to
     // another app otherwise, and returning to a frozen viewfinder looks broken.
     if (state == AppLifecycleState.resumed) {
+      if (!widget.active) return;
       _bridge?.resume();
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
@@ -139,6 +165,7 @@ class _ArScreenState extends State<ArScreen> with WidgetsBindingObserver {
       if (!mounted) return;
       _manifest = manifest;
       _scanLogger ??= ScanLogger(Supabase.instance.client);
+      widget.onArtworksLoaded?.call(manifest.artworks);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -168,6 +195,8 @@ class _ArScreenState extends State<ArScreen> with WidgetsBindingObserver {
         onArReady: (_) {
           if (!mounted) return;
           setState(() => _stage = ArStage.scanning);
+          // The tutorial may be showing while the camera starts up.
+          if (!widget.active) _bridge?.pause();
         },
         onArError: (message) {
           if (!mounted) return;
@@ -182,6 +211,9 @@ class _ArScreenState extends State<ArScreen> with WidgetsBindingObserver {
           setState(() {
             _current = event;
             _playbackBlocked = false;
+            _scanned
+              ..remove(event.slug)
+              ..add(event.slug);
           });
         },
         onTargetLost: (_) {
@@ -242,34 +274,127 @@ class _ArScreenState extends State<ArScreen> with WidgetsBindingObserver {
     await _bootstrap();
   }
 
+  Artwork? _artworkFor(String slug) {
+    for (final a in _manifest?.artworks ?? const <Artwork>[]) {
+      if (a.slug == slug) return a;
+    }
+    return null;
+  }
+
+  void _openCatalog() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => CatalogScreen(
+          artworks: _manifest?.artworks ?? const <Artwork>[],
+          scannedSlugs: _scanned.toSet(),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
+    final insets = Chrome.contentInsets(context);
+    final current = _current;
+    return ColoredBox(
+      // The camera feed paints over this once AR is running.
+      color: AppColors.canvas,
+      child: Stack(
         fit: StackFit.expand,
         children: [
           _buildWebView(),
-          if (_stage != ArStage.scanning) _buildBlockingLayer(),
+          if (_stage != ArStage.scanning) _buildBlockingLayer(insets),
           if (_stage == ArStage.scanning) ...[
-            ScanningOverlay(visible: _current == null),
-            _buildTopBar(),
+            ScanningOverlay(visible: current == null),
+            Positioned(
+              top: insets.top + 8,
+              left: 20,
+              right: 20,
+              child: _buildHud(),
+            ),
             if (_playbackBlocked)
               Center(
-                child: FilledButton.icon(
+                child: PillButton(
+                  label: 'Tap to play',
+                  icon: Icons.play_arrow,
                   onPressed: _retryPlayback,
-                  icon: const Icon(Icons.play_arrow),
-                  label: const Text('Tap to play'),
                 ),
               ),
-            if (_current != null)
-              Align(
-                alignment: Alignment.bottomCenter,
-                child: ArtworkInfoSheet(event: _current!),
+            if (current != null)
+              Positioned(
+                left: 20,
+                right: 20,
+                bottom: insets.bottom + 16,
+                child: Center(
+                  child: ArtworkInfoSheet(
+                    event: current,
+                    thumbnailUrl: _artworkFor(current.slug)?.thumbnailUrl,
+                    muted: _muted,
+                    onToggleMute: _toggleMute,
+                  ),
+                ),
               ),
           ],
         ],
       ),
+    );
+  }
+
+  /// Status pill, then the mute button and the scanned-count pill.
+  Widget _buildHud() {
+    final current = _current;
+    final last = _scanned.isEmpty ? null : _artworkFor(_scanned.last);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        GlassPanel(
+          shadows: AppShadows.soft,
+          padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 8),
+          child: Row(
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                  color: AppColors.mocha,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  current == null
+                      ? 'Align physical image in frame'
+                      : 'Now playing: ${current.title}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.bodySm.copyWith(
+                    color: AppColors.espresso,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            GlassIconButton(
+              icon: _muted ? Icons.volume_off_outlined : Icons.volume_up_outlined,
+              tooltip: _muted ? 'Unmute' : 'Mute',
+              onPressed: _toggleMute,
+            ),
+            const Spacer(),
+            if (_scanned.isNotEmpty)
+              _ScannedPill(
+                count: _scanned.length,
+                thumbnailUrl: last?.thumbnailUrl,
+                onTap: _openCatalog,
+              ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -325,53 +450,12 @@ class _ArScreenState extends State<ArScreen> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildTopBar() {
-    // Align, or the Row is stretched by the expanded Stack and its icons end
-    // up vertically centred on the screen.
-    return Align(
-      alignment: Alignment.topCenter,
-      child: _topBarContent(),
-    );
-  }
-
-  Widget _topBarContent() {
-    return SafeArea(
+  Widget _buildBlockingLayer(EdgeInsets insets) {
+    return ColoredBox(
+      color: AppColors.canvas,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            IconButton(
-              tooltip: _muted ? 'Unmute' : 'Mute',
-              icon: Icon(_muted ? Icons.volume_off : Icons.volume_up),
-              color: Colors.white,
-              onPressed: _toggleMute,
-            ),
-            IconButton(
-              tooltip: 'Browse the gallery',
-              icon: const Icon(Icons.grid_view_rounded),
-              color: Colors.white,
-              onPressed: () {
-                final artworks = _manifest?.artworks ?? const <Artwork>[];
-                Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => CatalogScreen(artworks: artworks),
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBlockingLayer() {
-    return Container(
-      color: Colors.black,
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(28),
+        padding: EdgeInsets.fromLTRB(20, insets.top, 20, insets.bottom),
+        child: Center(
           child: switch (_stage) {
             ArStage.starting ||
             ArStage.loadingManifest ||
@@ -380,7 +464,7 @@ class _ArScreenState extends State<ArScreen> with WidgetsBindingObserver {
             ArStage.needsPermission => _Message(
                 icon: Icons.photo_camera_outlined,
                 title: 'Camera access needed',
-                body: 'This app looks at the artwork through your camera to '
+                body: 'ARise looks at the artwork through your camera to '
                     'bring it to life. Nothing is recorded or uploaded.',
                 actionLabel: 'Allow camera',
                 onAction: _retryAll,
@@ -388,8 +472,8 @@ class _ArScreenState extends State<ArScreen> with WidgetsBindingObserver {
             ArStage.permissionPermanentlyDenied => _Message(
                 icon: Icons.settings_outlined,
                 title: 'Camera access is blocked',
-                body: 'Camera permission was denied permanently. Enable it in '
-                    'Settings, then come back.',
+                body: 'Camera permission was turned off for ARise. Enable it '
+                    'in Settings, then come back.',
                 actionLabel: 'Open settings',
                 onAction: openAppSettings,
               ),
@@ -415,6 +499,64 @@ class _ArScreenState extends State<ArScreen> with WidgetsBindingObserver {
   }
 }
 
+/// "N Scanned" glass pill with the most recent artwork's thumbnail.
+class _ScannedPill extends StatelessWidget {
+  const _ScannedPill({
+    required this.count,
+    required this.thumbnailUrl,
+    required this.onTap,
+  });
+
+  final int count;
+  final String? thumbnailUrl;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassPanel(
+      blur: 6,
+      shadows: AppShadows.soft,
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          customBorder: const StadiumBorder(),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(9, 8, 14, 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 24,
+                  height: 24,
+                  clipBehavior: Clip.antiAlias,
+                  decoration: BoxDecoration(
+                    color: AppColors.recessed,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.hairline),
+                  ),
+                  child: thumbnailUrl == null
+                      ? null
+                      : Image.network(
+                          thumbnailUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                        ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  '$count Scanned',
+                  style: AppText.label.copyWith(letterSpacing: 0),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _Busy extends StatelessWidget {
   const _Busy({required this.label});
   final String label;
@@ -424,9 +566,9 @@ class _Busy extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const CircularProgressIndicator(color: Colors.white70),
+        const CircularProgressIndicator(),
         const SizedBox(height: 20),
-        Text(label, style: const TextStyle(color: Colors.white70)),
+        Text(label, style: AppText.body),
       ],
     );
   }
@@ -449,29 +591,30 @@ class _Message extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 48, color: Colors.white70),
-        const SizedBox(height: 20),
-        Text(
-          title,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-          ),
+    return SingleChildScrollView(
+      child: AppCard(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: const BoxDecoration(
+                color: AppColors.peach,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 26, color: AppColors.mocha),
+            ),
+            const SizedBox(height: 16),
+            Text(title, textAlign: TextAlign.center, style: AppText.title),
+            const SizedBox(height: 8),
+            Text(body, textAlign: TextAlign.center, style: AppText.body),
+            const SizedBox(height: 20),
+            PillButton(label: actionLabel, onPressed: onAction, expand: true),
+          ],
         ),
-        const SizedBox(height: 12),
-        Text(
-          body,
-          textAlign: TextAlign.center,
-          style: const TextStyle(color: Colors.white60, height: 1.4),
-        ),
-        const SizedBox(height: 28),
-        FilledButton(onPressed: onAction, child: Text(actionLabel)),
-      ],
+      ),
     );
   }
 }
