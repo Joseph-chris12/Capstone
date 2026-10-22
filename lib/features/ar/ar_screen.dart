@@ -60,6 +60,15 @@ class _ArScreenState extends State<ArScreen> with WidgetsBindingObserver {
   bool _playbackBlocked = false;
   bool _pageReady = false;
 
+  /// The gallery is fetched as soon as the screen exists (the artwork list
+  /// needs it), but the camera only starts once the Scan tab is shown.
+  Future<void>? _manifestLoad;
+  bool _cameraRequested = false;
+
+  /// OS permission granted: only now is the AR WebView built, so no camera
+  /// runs hidden behind the tutorial.
+  bool _cameraAllowed = false;
+
   /// Artworks recognised this session, most recent last.
   final _scanned = <String>[];
 
@@ -81,9 +90,13 @@ class _ArScreenState extends State<ArScreen> with WidgetsBindingObserver {
   void didUpdateWidget(ArScreen old) {
     super.didUpdateWidget(old);
     if (old.active == widget.active) return;
-    // Switching tabs releases the camera, like backgrounding the app.
+    // Switching tabs pauses tracking, like backgrounding the app.
     if (widget.active) {
-      _bridge?.resume();
+      if (_cameraRequested) {
+        _bridge?.resume();
+      } else {
+        _startCamera();
+      }
     } else {
       _bridge?.pause();
       if (_current != null) setState(() => _current = null);
@@ -118,19 +131,35 @@ class _ArScreenState extends State<ArScreen> with WidgetsBindingObserver {
       await _server.start();
     }
 
-    // Permission and manifest are independent; running them together means a
-    // slow network does not delay the permission prompt.
-    final results = await Future.wait([
-      _ensureCameraPermission(),
-      _loadManifest(),
-    ]);
+    _manifestLoad = _loadManifest();
+    if (widget.active) {
+      await _startCamera();
+    } else {
+      await _manifestLoad;
+    }
+  }
 
+  /// Asks for the camera and builds the AR scene. Runs the first time the
+  /// Scan tab is visible; the permission prompt and the manifest download
+  /// overlap, so a slow network does not delay the prompt.
+  Future<void> _startCamera() async {
+    if (_cameraRequested) return;
+    _cameraRequested = true;
+
+    final granted = await _ensureCameraPermission();
+    await _manifestLoad;
     if (!mounted) return;
-    final granted = results[0] as bool;
-    if (!granted) return; // _ensureCameraPermission set the stage
-    if (_manifest == null) return; // _loadManifest set the stage
 
-    setState(() => _stage = ArStage.buildingScene);
+    // Either way the visitor can retry, which must ask again.
+    if (!granted || _manifest == null) {
+      _cameraRequested = false;
+      return; // _ensureCameraPermission / _loadManifest set the stage
+    }
+
+    setState(() {
+      _cameraAllowed = true;
+      _stage = ArStage.buildingScene;
+    });
     _maybeInitScene();
   }
 
@@ -270,6 +299,11 @@ class _ArScreenState extends State<ArScreen> with WidgetsBindingObserver {
       _stage = ArStage.starting;
       _errorMessage = '';
       _manifest = null;
+      // The WebView is torn down with these and rebuilt from a fresh page.
+      _cameraRequested = false;
+      _cameraAllowed = false;
+      _pageReady = false;
+      _bridge = null;
     });
     await _bootstrap();
   }
@@ -399,9 +433,9 @@ class _ArScreenState extends State<ArScreen> with WidgetsBindingObserver {
   }
 
   Widget _buildWebView() {
-    // Built only once the manifest exists, so the camera does not open behind
-    // an error screen the visitor is still reading.
-    if (_manifest == null) return const SizedBox.shrink();
+    // Built only once the manifest exists and the camera is allowed, so the
+    // camera never opens behind an error screen or a hidden tab.
+    if (_manifest == null || !_cameraAllowed) return const SizedBox.shrink();
 
     if (kIsWeb) {
       return buildWebArView(

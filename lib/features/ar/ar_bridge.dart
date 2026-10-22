@@ -144,13 +144,19 @@ class ArBridge {
   /// The manifest is JSON-encoded, so it is a valid JavaScript literal and
   /// needs no escaping beyond what jsonEncode already does.
   Future<void> init(ArManifest manifest) =>
-      _evaluate('window.ARApp.init(${jsonEncode(manifest.toJson())})');
+      _call('init(${jsonEncode(manifest.toJson())})');
 
-  Future<void> start() => _evaluate('window.ARApp.start()');
-  Future<void> stop() => _evaluate('window.ARApp.stop()');
-  Future<void> pause() => _evaluate('window.ARApp.pause()');
-  Future<void> resume() => _evaluate('window.ARApp.resume()');
-  Future<void> resumePlayback() => _evaluate('window.ARApp.resumePlayback()');
-  Future<void> setMuted(bool muted) =>
-      _evaluate('window.ARApp.setMuted($muted)');
+  Future<void> start() => _call('start()');
+  Future<void> stop() => _call('stop()');
+  Future<void> pause() => _call('pause()');
+  Future<void> resume() => _call('resume()');
+  Future<void> resumePlayback() => _call('resumePlayback()');
+  Future<void> setMuted(bool muted) => _call('setMuted($muted)');
+
+  /// A tab switch or lifecycle change can arrive while ar.html is still
+  /// loading, before window.ARApp exists; such calls are dropped instead of
+  /// throwing. Nothing is running yet then, and onArReady re-checks whether
+  /// the Scan tab is still visible.
+  Future<void> _call(String expression) =>
+      _evaluate('window.ARApp && window.ARApp.$expression');
 }
