@@ -40,6 +40,10 @@
      only covers part of the screen. */
   #scene-root { position: fixed; inset: 0; }
   a-scene { width: 100%; height: 100%; }
+  /* A-Frame's own enter-AR / enter-VR / fullscreen buttons: the Flutter UI
+     owns every control, and these would only lead out of the experience. */
+  .a-enter-vr, .a-enter-ar, .a-enter-vr-button, .a-enter-ar-button,
+  .a-orientation-modal { display: none !important; }
 </style>
 <script src="vendor/aframe.min.js"></script>
 <script src="vendor/mindar-image-aframe.prod.js"></script>

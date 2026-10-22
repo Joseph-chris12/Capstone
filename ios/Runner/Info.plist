@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Ar Gallery</string>
+	<string>ARise</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -48,7 +48,9 @@
 		</dict>
 	</dict>
 	<key>NSCameraUsageDescription</key>
-	<string>AR Gallery uses the camera to recognise artworks on the wall and play their animation over them. Nothing is recorded or uploaded.</string>
+	<string>ARise uses the camera to recognise artworks on the wall and play their animation over them. Nothing is recorded or uploaded.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>ARise lets you attach a photo of a print or a screenshot to your feedback. Only the photo you choose is sent.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<!-- The AR page is served by the in-app localhost server over http.

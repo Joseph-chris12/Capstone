@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'app_shell.dart';
 import 'core/config.dart';
-import 'features/ar/ar_screen.dart';
+import 'core/onboarding.dart';
+import 'core/theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,25 +24,23 @@ Future<void> main() async {
     );
   }
 
-  runApp(const ArGalleryApp());
+  final onboarding = await OnboardingStore.load();
+
+  runApp(ArGalleryApp(onboarding: onboarding));
 }
 
 class ArGalleryApp extends StatelessWidget {
-  const ArGalleryApp({super.key});
+  const ArGalleryApp({super.key, required this.onboarding});
+
+  final OnboardingStore onboarding;
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'AR Gallery',
+      title: 'ARise',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF6C5CE7),
-          brightness: Brightness.dark,
-        ),
-        useMaterial3: true,
-      ),
-      home: const ArScreen(),
+      theme: buildAppTheme(),
+      home: AppShell(onboarding: onboarding),
     );
   }
 }

@@ -22,6 +22,12 @@
     videos: {},        // targetIndex -> HTMLVideoElement
     activeIndex: null,
     started: false,
+    // MindAR's start() is async: the camera opens first and its tracking
+    // controller only exists once 'arReady' fires. Until then pause/unpause
+    // would dereference an undefined controller.
+    arReady: false,
+    // A pause asked for before arReady, applied as soon as it fires.
+    wantPaused: false,
     muted: true
   };
 
@@ -105,6 +111,16 @@
         // was restarted) rejects with AbortError: that is not a block.
         if (err && err.name === 'AbortError') return;
         if (state.activeIndex !== index) return;
+        // Only NotAllowedError means autoplay was refused. Anything else
+        // (e.g. NotSupportedError, an undecodable clip) is a video error, and
+        // a tap-to-play button could not fix it.
+        if (err && err.name && err.name !== 'NotAllowedError') {
+          send('onVideoError', {
+            targetIndex: index,
+            message: err.message || err.name
+          });
+          return;
+        }
         // Autoplay was refused. Dart shows a tap-to-play affordance; the
         // gesture is forwarded back through ARApp.resumePlayback().
         send('onPlaybackBlocked', {
@@ -219,6 +235,13 @@
     });
 
     scene.addEventListener('arReady', function () {
+      state.arReady = true;
+      // MindAR emits arReady and only then calls processVideo(), so a pause
+      // applied right here would be undone; apply it on the next tick.
+      setTimeout(function () {
+        if (!state.wantPaused || !state.arReady) return;
+        try { state.arSystem.pause(true); } catch (e) { fail('pause', e); }
+      }, 0);
       send('onArReady', { targetCount: manifest.artworks.length });
     });
     scene.addEventListener('arError', function (e) {
@@ -269,21 +292,24 @@
 
     stop: function () {
       try {
-        if (state.arSystem && state.started) {
+        if (state.arSystem && state.arReady) {
           state.arSystem.stop();
-          state.started = false;
+          state.arReady = false;
         }
+        state.started = false;
         Object.keys(state.videos).forEach(function (i) { pauseVideo(i); });
       } catch (e) {
         fail('stop', e);
       }
     },
 
-    // Called when Flutter backgrounds the AR screen. pause(true) also releases
-    // the camera track, which Android requires before another app can use it.
+    // Called when Flutter hides or backgrounds the Scan tab. pause(true) stops
+    // tracking but keeps the camera stream, so resuming is instant. Safe at
+    // any time: before arReady the pause is remembered and applied then.
     pause: function () {
       try {
-        if (state.arSystem && state.started) state.arSystem.pause(true);
+        state.wantPaused = true;
+        if (state.arSystem && state.arReady) state.arSystem.pause(true);
         Object.keys(state.videos).forEach(function (i) { pauseVideo(i); });
       } catch (e) {
         fail('pause', e);
@@ -292,7 +318,8 @@
 
     resume: function () {
       try {
-        if (state.arSystem && state.started) state.arSystem.unpause();
+        state.wantPaused = false;
+        if (state.arSystem && state.arReady) state.arSystem.unpause();
         if (state.activeIndex != null) playVideo(state.activeIndex);
       } catch (e) {
         fail('resume', e);
